@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	dockerapi "github.com/fsouza/go-dockerclient"
@@ -179,4 +181,14 @@ func main() {
 
 	close(quit)
 	log.Fatal("Docker event loop closed") // todo: reconnect?
+}
+
+func handleSignal(b *bridge.Bridge) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGTERM)
+
+	sig := <-ch
+	if sig == syscall.SIGTERM {
+		b.DeregisterAllService()
+	}
 }
