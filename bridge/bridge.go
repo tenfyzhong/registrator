@@ -202,7 +202,7 @@ func (b *Bridge) add(containerId string, quiet bool) {
 
 	// Extract configured host port mappings, relevant when using --net=host
 	for port, _ := range container.Config.ExposedPorts {
-		published := []dockerapi.PortBinding{{"0.0.0.0", port.Port()}}
+		published := []dockerapi.PortBinding{ {"0.0.0.0", port.Port()}, }
 		ports[string(port)] = servicePort(container, port, published)
 	}
 
@@ -301,7 +301,7 @@ func (b *Bridge) newService(port ServicePort, isgroup bool) *Service {
 				service.IP = containerIp
 			}
 			log.Println("using container IP " + service.IP + " from label '" +
-				b.config.UseIpFromLabel + "'")
+				b.config.UseIpFromLabel  + "'")
 		} else {
 			log.Println("Label '" + b.config.UseIpFromLabel +
 				"' not found in container configuration")
@@ -352,19 +352,19 @@ func (b *Bridge) remove(containerId string, deregister bool) {
 	defer b.Unlock()
 
 	if deregister {
-		// deregisterAll := func(services []*Service) {
-		// 	for _, service := range services {
-		// 		err := b.registry.Deregister(service)
-		// 		if err != nil {
-		// 			log.Println("deregister failed:", service.ID, err)
-		// 			continue
-		// 		}
-		// 		log.Println("removed:", containerId[:12], service.ID)
-		// 	}
-		// }
-		b.deregisterAll(b.services[containerId])
+		deregisterAll := func(services []*Service) {
+			for _, service := range services {
+				err := b.registry.Deregister(service)
+				if err != nil {
+					log.Println("deregister failed:", service.ID, err)
+					continue
+				}
+				log.Println("removed:", containerId[:12], service.ID)
+			}
+		}
+		deregisterAll(b.services[containerId])
 		if d := b.deadContainers[containerId]; d != nil {
-			b.deregisterAll(d.Services)
+			deregisterAll(d.Services)
 			delete(b.deadContainers, containerId)
 		}
 	} else if b.config.RefreshTtl != 0 && b.services[containerId] != nil {
@@ -372,24 +372,6 @@ func (b *Bridge) remove(containerId string, deregister bool) {
 		b.deadContainers[containerId] = &DeadContainer{b.config.RefreshTtl, b.services[containerId]}
 	}
 	delete(b.services, containerId)
-}
-
-// deregister all service from registry
-func (b *Bridge) deregisterAll(services []*Service) {
-	for _, service := range services {
-		err := b.registry.Deregister(service)
-		if err != nil {
-			log.Println("deregister failed:", service.ID, err)
-			continue
-		}
-		log.Println("removed:", service.ID)
-	}
-}
-
-func (b *Bridge) DeregisterAllService() {
-	for _, services := range b.services {
-		b.deregisterAll(services)
-	}
 }
 
 // bit set on ExitCode if it represents an exit via a signal
